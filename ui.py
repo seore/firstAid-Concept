@@ -29,6 +29,9 @@ class MainWindow(QMainWindow):
         self.search_bar.textChanged.connect(self.filter_list)
         self.layout.addWidget(self.search_bar)
 
+        self.content_layout = QHBoxLayout()
+        self.layout.addLayout(self.content_layout)
+
         # Injury list
         self.list_widget = QListWidget()
         self.list_widget.setMaximumWidth(250)
@@ -79,7 +82,7 @@ class MainWindow(QMainWindow):
             item = QListWidgetItem(injury["name"])
             self.list_widget.addItem(item)
 
-    def apply_stypes(self):
+    def apply_styles(self):
         self.setStyleSheet(""" 
             QMainWindow { background-color: #f0f4f7; }
             QLabel { font-size: 14pt; color: #333; }
@@ -106,7 +109,7 @@ class MainWindow(QMainWindow):
         steps = self.current_injury["steps"]
         if self.current_index >= len(steps):
             self.current_index = len(steps) - 1
-        text = f"<b>{self.current_injury['name']} (Step {self.current_index+1}//{len(steps)}</b><br>{steps[self.current_index]})"
+        text = f"<b>{self.current_injury['name']} (Step {self.current_index+1}/{len(steps)})</b><br>{steps[self.current_index]}"
         self.instruction_label.setText(text)
 
         # image display
