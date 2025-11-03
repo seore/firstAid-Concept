@@ -6,11 +6,13 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 import os
+import pyttsx3
 import json
 
 class MainWindow(QMainWindow):
     def __init__(self, injuries):
         super().__init__()
+        self.tss_engine = pyttsx3.init()
         self.setWindowTitle("First-Aid App")
         self.resize(800, 600)
         self.injuries = injuries
@@ -57,8 +59,11 @@ class MainWindow(QMainWindow):
         self.prev_button.clicked.connect(self.prev_step)
         self.next_button = QPushButton("Next")
         self.next_button.clicked.connect(self.next_step)
+        self.voice_button = QPushButton("Play Voice")
+        self.voice_button.clicked.connect(self.read_current_step)
         app_layout.addWidget(self.prev_button)
         app_layout.addWidget(self.next_button)
+        app_layout.addWidget(self.voice_button)
         self.instruction.addLayout(app_layout)
 
         # Other buttons
@@ -119,6 +124,12 @@ class MainWindow(QMainWindow):
             self.image_graph.setPixmap(pixmap)
         else:
             self.image_graph.clear()
+
+    def read_current_step(self):
+        if hasattr(self, "current_injury") and self.current_injury:
+            step_text = self.current_injury["steps"][self.current_index]
+            self.tss_engine.say(f"{self.current_injury['name']}. Step {self.current_index + 1}. {step_text}")
+            self.tss_engine.runAndWait()
             
     def next_step(self):
         if hasattr(self, "current_injury") and self.current_injury:
