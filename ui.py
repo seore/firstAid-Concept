@@ -9,7 +9,7 @@ import os
 import pyttsx3
 import json
 
-APP_BG = "#eef3f6"
+APP_BG = "#e0d1f8"
 CARD_BG = "#ffffff"
 PRIMARY = "#2b7cff"
 EMERGENCY_COLOR = "#e53935"
@@ -100,7 +100,7 @@ class MainWindow(QMainWindow):
         self.instruction = QLabel("Select an injury to see steps.")
         self.instruction.setWordWrap(True)
         self.instruction.setFont(QFont("Segoe UI", 12))
-        display_layout.layout.addWidget(self.instruction)
+        display_layout.addWidget(self.instruction)
 
         # App buttons
         nav_layout = QHBoxLayout()
@@ -157,15 +157,17 @@ class MainWindow(QMainWindow):
             return None
 
     def apply_styles(self):
-        self.setStyleSheet(""" 
-            QMainWindow { background-color: #f0f4f7; }
-            QLabel { font-size: 14pt; color: #333; }
-            QListWidget { font-size: 12pt; padding: 5px; }
-            QPushButton { background-color: #1976d2; color: white; font-weight: bold; border-radius: 8px; padding: 10px; }
-            QPushButton#emergency { background-color: #d32f2f; }
-            QLineEdit { padding: 8px; font-size: 12pt; }
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {APP_BG}; }}
+            QWidget#card {{ background: {CARD_BG}; border-radius: 12px; }}
+            QListWidget {{ background: transparent; border: none; padding: 8px; }}
+            QListWidget::item {{ background: {CARD_BG}; border-radius:10px; padding: 12px; margin: 6px; color: {TEXT_COLOR}; }}
+            QListWidget::item:selected {{ border: 2px solid {PRIMARY}; background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #ffffff, stop:1 #f4f9ff); }}
+            QPushButton {{ background-color: {PRIMARY}; color: white; padding: 8px 14px; border-radius: 8px; font-weight: 600; }}
+            QPushButton:disabled {{ background-color: #bfc9d9; color: #ffffff; }}
+            QLineEdit {{ background: white; border: 1px solid #d7dde3; border-radius: 8px; padding: 8px; }}
         """)
-        self.emergency_button.setObjectName("emergency")
+        #self.emergency_button.setObjectName("emergency")
     
     def show_steps(self, current, previous=None):
         if current is None:
@@ -179,29 +181,59 @@ class MainWindow(QMainWindow):
         self.current_injury = i
         self.current_index = 0
         self.update_instructions()
-    
-    def update_instructions(self):
-        if not self.current_injury:
-            return
-        steps = self.current_injury["steps"]
-        if self.current_index >= len(steps):
-            self.current_index = len(steps) - 1
-        text = f"<b>{self.current_injury['name']} (Step {self.current_index+1}/{len(steps)})</b><br>{steps[self.current_index]}"
-        self.instruction_label.setText(text)
 
-        # image display
-        img_path = os.path.join("icons", self.current_injury.get("icons", ""))
-        if os.path.exists(img_path):
-            pixmap = QPixmap(img_path).scaled(300,200, Qt.AspectRatioMode.KeepAspectRatio)
-            self.image_graph.setPixmap(pixmap)
+    def clear_instructions(self):
+        self.injury_title.setText("Select an injury")
+        self.instruction.setText("Choose an injury on the left to view step-to-step guidance.")
+        self.img_label.clear()
+        self.toggle_like.setChecked(False)
+        self.toggle_like.setText("☆ Favorite")
+
+    def update_instructions(self):
+        i = getattr(self, "current_injury", None)
+        if not i:
+            self.clear_instructions(); return
+        name = i.get("name", "injury")
+        steps = i.get("steps", [])
+        if self.current_index >= len(steps):
+            self.current_index = max(0, len(steps)-1)
+        self.injury_title.setText(name)
+        if steps:
+            content = f"<b>Step {self.current_index+1}/{len(steps)}</b><br><p style='margin-top: 6px'>{steps[self.current_index]}</p>"
         else:
-            self.image_graph.clear()
+            content = "<i>No steps available.</i>"
+        self.instruction.setText(content)
+    
+        # image display
+        img_name = i.get("image", "")
+        img_path = os.path.join("icons", img_name) if img_name else ""
+        if img_path and os.path.exists(img_path):
+            pix = QPixmap(img_path).scaledToHeight(260, Qt.TransformationMode.SmoothTransformation)
+            self.img_label.setPixmap(pix)
+        else:
+            if os.path.exists(IMG_PLACEHOLDER):
+                pix = QPixmap(IMG_PLACEHOLDER).scaledToHeight(180, Qt.TransformationMode.SmoothTransformation)
+                self.img_label.setPixmap(pix)
+            else:
+                self.img_label.clear()
+
+        if name in self.favourites:
+            self.like_button.setChecked(True)
+            self.like_button.setText("★ Favorited")
+        else:
+            self.like_button.setChecked(False)
+            self.like_button.setText("☆ Favorite")
 
     def read_current_step(self):
-        if hasattr(self, "current_injury") and self.current_injury:
-            step_text = self.current_injury["steps"][self.current_index]
-            self.tss_engine.say(f"{self.current_injury['name']}. Step {self.current_index + 1}. {step_text}")
+        i = getattr(self, "current_injury", None)
+        if not i: return
+        steps = i.get("steps", [])
+        t = f"{i.get('name')}. Step {self.current_index+1}. {steps[self.current_index]}"
+        try:
+            self.tss_engine.say(t)
             self.tss_engine.runAndWait()
+        except Exception as e:
+            QMessageBox.warning(self, "TTS Error", f"Could not play voice:{e}")
             
     def next_step(self):
         if hasattr(self, "current_injury") and self.current_injury:
@@ -216,20 +248,34 @@ class MainWindow(QMainWindow):
                 self.update_instructions()
 
     def filter_list(self, text):
+        text = (text or "").strip().lower()
         for i in range(self.list_widget.count()):
             item = self.list_widget.item(i)
-            item.setHidden(text.lower() not in item.text().lower())
+            item.setHidden(text not in item.text().lower())
 
-    def toggle_like(self):
-        if not hasattr(self, "current_injury") or not self.current_injury:
+    def click_like(self):
+        i = getattr(self, "current_injury", None)
+        if not i:
             return
-        name = self.current_injury["name"]
+        name = i.get("name")
         if name in self.favourites:
             self.favourites.remove(name)
-            self.like_button.setText("Add to Favourites")
+            self.like_button.setText("☆ Favorite")
         else:
             self.favourites.append(name)
-            self.like_button.setText("Remove from Favourites")
+            self.like_button.setText("★ Favorited")
+    
+    def show_favs(self):
+        if not self.favourites:
+            QMessageBox.information(self, "Favourites", "You have no favourites yet. Mark an injury then come back.")
+            return
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            item.setHidden(item.text() not in self.favourites)
 
     def show_emergency(self):
-        QMessageBox.information(self, "Emergency", "Call your local emergency number immediately!")
+        QMessageBox.information(self, "Emergency", "Call your local emergency number immediately!",
+            buttons= QMessageBox.StandardButton.Ok)
+        
+    def display_about(self):
+        QMessageBox.information(self, "About FirstAid", "First Aid - Quick Help\nSimple offline first-aid guidance.")
