@@ -1,91 +1,160 @@
 from PyQt6.QtWidgets import (
     QWidget, QMainWindow, QVBoxLayout, QLabel, QListWidget,
     QListWidgetItem, QPushButton, QLineEdit, QMessageBox, QHBoxLayout,
-    QSpacerItem, QSizePolicy
+    QSpacerItem, QSizePolicy, QFrame, QToolButton
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QFont, QIcon
 import os
 import pyttsx3
 import json
+
+APP_BG = "#eef3f6"
+CARD_BG = "#ffffff"
+PRIMARY = "#2b7cff"
+EMERGENCY_COLOR = "#e53935"
+UI_ACCENT = "#4caf50"
+TEXT_COLOR = "#222831"
+MUTED = "#6b7280"
+IMG_PLACEHOLDER = "icons/place.png"
 
 class MainWindow(QMainWindow):
     def __init__(self, injuries):
         super().__init__()
         self.tss_engine = pyttsx3.init()
         self.setWindowTitle("First-Aid App")
-        self.resize(800, 600)
+        self.resize(1000, 650)
         self.injuries = injuries
         self.current_index = 0
         self.favourites = []
 
-        # Main widget and layout
+        # Widgets and layouts
         self.widget = QWidget()
         self.layout = QVBoxLayout()
         self.widget.setLayout(self.layout)
         self.setCentralWidget(self.widget)
 
-        # Search bar
+        header = QHBoxLayout()
+        title_label = QLabel("First Aid")
+        title_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        title_label.setStyleSheet(f"color: {TEXT_COLOR};")
+        header.addWidget(title_label)
+        header.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+
+        about_button = QToolButton()
+        about_button.setText("About")
+        about_button.clicked.connect(self.display_about) 
+        header.addWidget(about_button)
+
+        self.layout.addLayout(header)
+
+        # Search bar and Main Display
+        top_display = QHBoxLayout()
+        self.layout.addLayout(top_display, stretch=1)
+
+        # Left Display - Injuries
+        left_display = QVBoxLayout()
         self.search_bar = QLineEdit()
         self.search_bar.setPlaceholderText("Search for injury type...")
         self.search_bar.textChanged.connect(self.filter_list)
+        self.search_bar.setFixedHeight(40)
         self.layout.addWidget(self.search_bar)
-
-        self.content_layout = QHBoxLayout()
-        self.layout.addLayout(self.content_layout)
-
-        # Injury list
+        
         self.list_widget = QListWidget()
-        self.list_widget.setMaximumWidth(250)
+        self.list_widget.setSpacing(8)
+        self.list_widget.setUniformItemSizes(False)
+        self.list_widget.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
         self.list_widget.currentItemChanged.connect(self.show_steps)
-        self.content_layout.addWidget(self.list_widget)
+        left_display.addWidget(self.list_widget)
+        top_display.addLayout(left_display, stretch=33)
+    
+        # Right Display - Injuries Details
+        right_display = QVBoxLayout()
+        displayCard = QFrame()
+        displayCard.setObjectName("Display card")
+        display_layout = QVBoxLayout()
+        displayCard.setLayout(display_layout)
+        display_layout.setContentsMargins(10,10,10,10)
+        right_display.addWidget(displayCard, stretch=1)
 
-        # Instruction display
-        self.instruction = QVBoxLayout()
-        self.content_layout.addLayout(self.instruction)
-        self.instruction_label = QLabel("Select an injury to see steps.")
-        self.instruction_label.setWordWrap(True)
-        self.instruction_label.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.layout.addWidget(self.instruction_label)
+        # Favourites Display Card
+        title_r = QHBoxLayout()
+        self.injury_title = QLabel("Choose an injury")
+        self.injury_title.setFont(QFont("Segoe UI", 16, QFont.Weight.DemiBold))
+        title_r.addWidget(self.injury_title)
+        title_r.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
 
-        # Injury Graphics
-        self.image_graph = QLabel()
-        self.image_graph.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.instruction.addWidget(self.image_graph)
+        self.like_button = QPushButton("Favourite")
+        self.like_button.setCheckable(True)
+        self.like_button.clicked.connect(self.click_like)
+        title_r.addWidget(self.like_button)
+        display_layout.addLayout(title_r)
+
+        # Placeholder Display
+        self.img_label = QLabel()
+        self.img_label.setFixedHeight(250)
+        self.img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        display_layout.addWidget(self.img_label)
+
+        # Instruction Display
+        self.instruction = QLabel("Select an injury to see steps.")
+        self.instruction.setWordWrap(True)
+        self.instruction.setFont(QFont("Segoe UI", 12))
+        display_layout.layout.addWidget(self.instruction)
 
         # App buttons
-        app_layout = QHBoxLayout()
-        self.prev_button = QPushButton("Previous")
+        nav_layout = QHBoxLayout()
+        self.prev_button = QPushButton("◀ Previous")
         self.prev_button.clicked.connect(self.prev_step)
-        self.next_button = QPushButton("Next")
+        self.next_button = QPushButton("Next  ▶")
         self.next_button.clicked.connect(self.next_step)
         self.voice_button = QPushButton("Play Voice")
         self.voice_button.clicked.connect(self.read_current_step)
-        app_layout.addWidget(self.prev_button)
-        app_layout.addWidget(self.next_button)
-        app_layout.addWidget(self.voice_button)
-        self.instruction.addLayout(app_layout)
+        nav_layout.addWidget(self.prev_button)
+        nav_layout.addWidget(self.next_button)
+        nav_layout.addWidget(self.voice_button)
+        nav_layout.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+        display_layout.addLayout(nav_layout)
 
-        # Other buttons
+        # Other App Buttons
         footer_layout = QHBoxLayout()
-        self.emergency_button = QPushButton("Emergency")
+        self.emergency_button = QPushButton("🚨 Emergency")
         self.emergency_button.clicked.connect(self.show_emergency)
-        self.like_button = QPushButton("Add To Favourites")
-        self.like_button.clicked.connect(self.toggle_like)
+        self.emergency_button.setStyleSheet(f"background-color: {EMERGENCY_COLOR}; color: white; font-weight: bold;")
+        self.display_favs = QPushButton("★ Favourites")
+        self.display_favs.clicked.connect(self.show_favs)
         footer_layout.addWidget(self.emergency_button)
-        footer_layout.addWidget(self.like_button)
-        spacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-        footer_layout.addSpacerItem(spacer)
-        self.layout.addLayout(footer_layout)
+        footer_layout.addWidget(self.display_favs)
+        footer_layout.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+        display_layout.addLayout(footer_layout)
     
+        top_display.addLayout(right_display, stretch=60)
+
         self.populate_list()
         self.apply_styles()
 
+    # ---------------------  Lists -----------------------
     def populate_list(self):
         self.list_widget.clear()
         for injury in self.injuries:
-            item = QListWidgetItem(injury["name"])
+            name = injury.get("name", "unknown")
+            item = QListWidgetItem(name)
+            img_title = injury.get("icon", "")
+            img_path = os.path.join("icons", img_title) if img_title else ""
+            if img_path and os.path.exists(img_path):
+                icon = QIcon(img_path)
+                item.setIcon(icon)
+            else:
+                if os.path.exists(IMG_PLACEHOLDER):
+                    item.setIcon(QIcon(IMG_PLACEHOLDER))
+            item.setData(Qt.ItemDataRole.UserRole, name)
             self.list_widget.addItem(item)
+    
+    def locate_injury(self, name):
+        for i in self.injuries:
+            if i.get("name", "").lower() == name.lower():
+                    return i
+            return None
 
     def apply_styles(self):
         self.setStyleSheet(""" 
@@ -100,12 +169,15 @@ class MainWindow(QMainWindow):
     
     def show_steps(self, current, previous=None):
         if current is None:
-            self.instruction_label.setText("Select an injury to see steps.")
-            self.image_graph.clear()
+            self.clear_instructions()
             return
         name = current.text()
+        i = self.locate_injury(name)
+        if not i:
+            self.clear_instructions()
+            return
+        self.current_injury = i
         self.current_index = 0
-        self.current_injury = next((i for i in self.injuries if i["name"] == name), None)
         self.update_instructions()
     
     def update_instructions(self):
