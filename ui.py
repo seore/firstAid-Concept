@@ -78,21 +78,72 @@ class MainWindow(QMainWindow):
         for injury in self.injuries:
             item = QListWidgetItem(injury["name"])
             self.list_widget.addItem(item)
-        self.list_widget.currentItemChanged.connect(self.show_steps)
 
+    def apply_stypes(self):
+        self.setStyleSheet(""" 
+            QMainWindow { background-color: #f0f4f7; }
+            QLabel { font-size: 14pt; color: #333; }
+            QListWidget { font-size: 12pt; padding: 5px; }
+            QPushButton { background-color: #1976d2; color: white; font-weight: bold; border-radius: 8px; padding: 10px; }
+            QPushButton#emergency { background-color: #d32f2f; }
+            QLineEdit { padding: 8px; font-size: 12pt; }
+        """)
+        self.emergency_button.setObjectName("emergency")
+    
     def show_steps(self, current, previous=None):
         if current is None:
             self.instruction_label.setText("Select an injury to see steps.")
+            self.image_graph.clear()
             return
         name = current.text()
-        steps = next((i["steps"] for i in self.injuries if i["name"] == name), [])
-        text = f"<b>{name}</b><br>" + "<br>".join(f"{idx+1}. {s}" for idx, s in enumerate(steps))
+        self.current_index = 0
+        self.current_injury = next((i for i in self.injuries if i["name"] == name), None)
+        self.update_instructions()
+    
+    def update_instructions(self):
+        if not self.current_injury:
+            return
+        steps = self.current_injury["steps"]
+        if self.current_index >= len(steps):
+            self.current_index = len(steps) - 1
+        text = f"<b>{self.current_injury['name']} (Step {self.current_index+1}//{len(steps)}</b><br>{steps[self.current_index]})"
         self.instruction_label.setText(text)
+
+        # image display
+        img_path = os.path.join("icons", self.current_injury.get("icons", ""))
+        if os.path.exists(img_path):
+            pixmap = QPixmap(img_path).scaled(300,200, Qt.AspectRatioMode.KeepAspectRatio)
+            self.image_graph.setPixmap(pixmap)
+        else:
+            self.image_graph.clear()
+            
+    def next_step(self):
+        if hasattr(self, "current_injury") and self.current_injury:
+            if self.current_index < len(self.current_injury["steps"]) - 1:
+                self.current_index += 1
+                self.update_instructions()
+    
+    def prev_step(self):
+        if hasattr(self, "current_injury") and self.current_injury:
+            if self.current_index > 0:
+                self.current_index -= 1
+                self.update_instructions()
 
     def filter_list(self, text):
         for i in range(self.list_widget.count()):
             item = self.list_widget.item(i)
             item.setHidden(text.lower() not in item.text().lower())
+
+    def toggle_like(self):
+        if not hasattr(self, "current_injury") or not self.current_injury:
+            return
+        name = self.current_injury["name"]
+        if name in self.favourites:
+            self.favourites.remove(name)
+            self.like_button.setText("Add to Favourites")
+        else:
+            self.favourites.append(name)
+            self.like_button.setText("Remove from Favourites")
 
     def show_emergency(self):
         QMessageBox.information(self, "Emergency", "Call your local emergency number immediately!")
