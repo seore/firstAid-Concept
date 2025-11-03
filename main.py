@@ -12,6 +12,7 @@ def main():
     injuries = load_injuries()
     window = MainWindow(injuries)
     window.show()
+    sys.exit(app.exec())
 
 if __name__ == "__main__":
     main()
