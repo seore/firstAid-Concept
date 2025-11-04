@@ -295,7 +295,7 @@ class MainWindow(QMainWindow):
         msg.setWindowTitle("Emergency Help")
         msg.setStyleSheet("""
            QMessageBox {{ 
-                background-color: #fefefe; 
+                background-color: #fffff; 
                 border-radius: 12px; 
                 font-family: 'SF Pro Display'; 
                 color: #1e1b2e; 
