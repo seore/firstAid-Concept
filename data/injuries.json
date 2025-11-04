@@ -19,16 +19,6 @@
       "Cover the burn with sterile, non-fluffy material.",
       "Seek medical attention if severe."
     ],
-    "icon": "#"
-  },
-  {
-    "name": "Burn",
-    "steps": [
-      "Clean the wound with water.",
-      "Apply pressure to stop the bleeding.",
-      "Cover with sterile bandage.",
-      "Seek medical attention if severe."
-    ],
-    "icon": "#"
+    "icon": "data/icons/burn.png"
   }
 ]

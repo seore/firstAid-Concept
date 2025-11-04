@@ -1,22 +1,25 @@
 from PyQt6.QtWidgets import (
     QWidget, QMainWindow, QVBoxLayout, QLabel, QListWidget,
     QListWidgetItem, QPushButton, QLineEdit, QMessageBox, QHBoxLayout,
-    QSpacerItem, QSizePolicy, QFrame, QToolButton
+    QSpacerItem, QSizePolicy, QFrame, QToolButton, QGraphicsDropShadowEffect
 )
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap, QFont, QIcon
+from PyQt6.QtCore import Qt, QEvent, QSize
+from PyQt6.QtGui import QPixmap, QFont, QIcon, QColor
 import os
 import pyttsx3
 import json
 
-APP_BG = "#e0d1f8"
-CARD_BG = "#ffffff"
-PRIMARY = "#2b7cff"
+APP_BG = "#eaf4f4"
+CARD_BG = "#c8d9e6"
+PRIMARY = "#4a90e2"
 EMERGENCY_COLOR = "#e53935"
+FAV = "#f1c40f"
 UI_ACCENT = "#4caf50"
-TEXT_COLOR = "#222831"
-MUTED = "#6b7280"
-IMG_PLACEHOLDER = "icons/place.png"
+TEXT_COLOR = "#1e1b2e"
+INPUT_BG = "#ffffff"
+INPUT_TEXT = "#000000"
+MUTED = "#7d7396"
+IMG_PLACEHOLDER = "data/icons/burn.png"
 
 class MainWindow(QMainWindow):
     def __init__(self, injuries):
@@ -28,59 +31,67 @@ class MainWindow(QMainWindow):
         self.current_index = 0
         self.favourites = []
 
-        # Widgets and layouts
-        self.widget = QWidget()
-        self.layout = QVBoxLayout()
-        self.widget.setLayout(self.layout)
-        self.setCentralWidget(self.widget)
+        # Main Container
+        self.container = QWidget()
+        self.container_layout = QVBoxLayout()
+        self.container.setLayout(self.container_layout)
+        self.container_layout.setContentsMargins(18,12,18,12)
+        self.container_layout.setSpacing(12)
+        self.setCentralWidget(self.container)
+        self.setMinimumSize(900,600)
 
+        # Header
         header = QHBoxLayout()
         title_label = QLabel("First Aid")
-        title_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        title_label.setFont(QFont("", 18, QFont.Weight.Bold))
         title_label.setStyleSheet(f"color: {TEXT_COLOR};")
         header.addWidget(title_label)
         header.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
-
         about_button = QToolButton()
         about_button.setText("About")
         about_button.clicked.connect(self.display_about) 
+        about_button.setAutoRaise(True)
         header.addWidget(about_button)
+        self.container_layout.addLayout(header)
 
-        self.layout.addLayout(header)
-
-        # Search bar and Main Display
+        # Search bar + main
         top_display = QHBoxLayout()
-        self.layout.addLayout(top_display, stretch=1)
+        top_display.setSpacing(18)
+        self.container_layout.addLayout(top_display, stretch=1)
 
         # Left Display - Injuries
-        left_display = QVBoxLayout()
+        left_display = QFrame()
+        left_display.setObjectName("display_left")
+        left_display_layout = QVBoxLayout(left_display)
+        left_display_layout.setContentsMargins(14,14,14,14)
+        left_display_layout.setSpacing(18)
+
         self.search_bar = QLineEdit()
         self.search_bar.setPlaceholderText("Search for injury type...")
         self.search_bar.textChanged.connect(self.filter_list)
-        self.search_bar.setFixedHeight(40)
-        self.layout.addWidget(self.search_bar)
-        
+        self.search_bar.setFixedHeight(42)
+        left_display_layout.addWidget(self.search_bar)
+
         self.list_widget = QListWidget()
-        self.list_widget.setSpacing(8)
+        self.list_widget.setSpacing(10)
         self.list_widget.setUniformItemSizes(False)
-        self.list_widget.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
+        # self.list_widget.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
         self.list_widget.currentItemChanged.connect(self.show_steps)
-        left_display.addWidget(self.list_widget)
-        top_display.addLayout(left_display, stretch=33)
+        left_display_layout.addWidget(self.list_widget)
+
+        top_display.addWidget(left_display, stretch=34)
     
         # Right Display - Injuries Details
-        right_display = QVBoxLayout()
-        displayCard = QFrame()
-        displayCard.setObjectName("Display card")
-        display_layout = QVBoxLayout()
-        displayCard.setLayout(display_layout)
-        display_layout.setContentsMargins(10,10,10,10)
-        right_display.addWidget(displayCard, stretch=1)
+        right_display = QFrame()
+        right_display.setObjectName("display_right")
+        right_display_layout = QVBoxLayout(right_display)
+        right_display_layout.setContentsMargins(18,18,18,18)
+        right_display_layout.setSpacing(14)
 
         # Favourites Display Card
         title_r = QHBoxLayout()
         self.injury_title = QLabel("Choose an injury")
-        self.injury_title.setFont(QFont("Segoe UI", 16, QFont.Weight.DemiBold))
+        self.injury_title.setFont(QFont("", 16, QFont.Weight.DemiBold))
         title_r.addWidget(self.injury_title)
         title_r.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
 
@@ -88,33 +99,39 @@ class MainWindow(QMainWindow):
         self.like_button.setCheckable(True)
         self.like_button.clicked.connect(self.click_like)
         title_r.addWidget(self.like_button)
-        display_layout.addLayout(title_r)
+        right_display_layout.addLayout(title_r)
 
         # Placeholder Display
         self.img_label = QLabel()
-        self.img_label.setFixedHeight(250)
+        self.img_label.setFixedHeight(260)
+        self.img_label.setStyleSheet("border-radius: 12px; background: #f6f8fb;")
         self.img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        display_layout.addWidget(self.img_label)
+        self.img_label.setObjectName("image_label")
+        right_display_layout.addWidget(self.img_label)
 
         # Instruction Display
         self.instruction = QLabel("Select an injury to see steps.")
         self.instruction.setWordWrap(True)
-        self.instruction.setFont(QFont("Segoe UI", 12))
-        display_layout.addWidget(self.instruction)
+        self.instruction.setFont(QFont("", 12))
+        self.instruction.setStyleSheet("color: %s;" % TEXT_COLOR)
+        self.instruction.setObjectName("intstruction")
+        right_display_layout.addWidget(self.instruction, stretch=1)
 
         # App buttons
         nav_layout = QHBoxLayout()
         self.prev_button = QPushButton("◀ Previous")
         self.prev_button.clicked.connect(self.prev_step)
+        self.prev_button.setObjectName("primary")
         self.next_button = QPushButton("Next  ▶")
         self.next_button.clicked.connect(self.next_step)
-        self.voice_button = QPushButton("Play Voice")
-        self.voice_button.clicked.connect(self.read_current_step)
+        self.next_button.setObjectName("primary")
+        #self.voice_button = QPushButton("Play Voice")
+        #self.voice_button.clicked.connect(self.read_current_step)
         nav_layout.addWidget(self.prev_button)
         nav_layout.addWidget(self.next_button)
-        nav_layout.addWidget(self.voice_button)
+        #nav_layout.addWidget(self.voice_button)
         nav_layout.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
-        display_layout.addLayout(nav_layout)
+        right_display_layout.addLayout(nav_layout)
 
         # Other App Buttons
         footer_layout = QHBoxLayout()
@@ -123,12 +140,14 @@ class MainWindow(QMainWindow):
         self.emergency_button.setStyleSheet(f"background-color: {EMERGENCY_COLOR}; color: white; font-weight: bold;")
         self.display_favs = QPushButton("★ Favourites")
         self.display_favs.clicked.connect(self.show_favs)
+        self.emergency_button.setObjectName("emergency")
+        self.display_favs.setObjectName("fav")
         footer_layout.addWidget(self.emergency_button)
         footer_layout.addWidget(self.display_favs)
         footer_layout.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
-        display_layout.addLayout(footer_layout)
+        right_display_layout.addLayout(footer_layout)
     
-        top_display.addLayout(right_display, stretch=60)
+        top_display.addWidget(right_display, stretch=66)
 
         self.populate_list()
         self.apply_styles()
@@ -139,7 +158,7 @@ class MainWindow(QMainWindow):
         for injury in self.injuries:
             name = injury.get("name", "unknown")
             item = QListWidgetItem(name)
-            img_title = injury.get("icon", "")
+            img_title = injury.get("icons", "")
             img_path = os.path.join("icons", img_title) if img_title else ""
             if img_path and os.path.exists(img_path):
                 icon = QIcon(img_path)
@@ -153,21 +172,8 @@ class MainWindow(QMainWindow):
     def locate_injury(self, name):
         for i in self.injuries:
             if i.get("name", "").lower() == name.lower():
-                    return i
-            return None
-
-    def apply_styles(self):
-        self.setStyleSheet(f"""
-            QMainWindow {{ background-color: {APP_BG}; }}
-            QWidget#card {{ background: {CARD_BG}; border-radius: 12px; }}
-            QListWidget {{ background: transparent; border: none; padding: 8px; }}
-            QListWidget::item {{ background: {CARD_BG}; border-radius:10px; padding: 12px; margin: 6px; color: {TEXT_COLOR}; }}
-            QListWidget::item:selected {{ border: 2px solid {PRIMARY}; background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #ffffff, stop:1 #f4f9ff); }}
-            QPushButton {{ background-color: {PRIMARY}; color: white; padding: 8px 14px; border-radius: 8px; font-weight: 600; }}
-            QPushButton:disabled {{ background-color: #bfc9d9; color: #ffffff; }}
-            QLineEdit {{ background: white; border: 1px solid #d7dde3; border-radius: 8px; padding: 8px; }}
-        """)
-        #self.emergency_button.setObjectName("emergency")
+                return i
+        return None
     
     def show_steps(self, current, previous=None):
         if current is None:
@@ -186,8 +192,8 @@ class MainWindow(QMainWindow):
         self.injury_title.setText("Select an injury")
         self.instruction.setText("Choose an injury on the left to view step-to-step guidance.")
         self.img_label.clear()
-        self.toggle_like.setChecked(False)
-        self.toggle_like.setText("☆ Favorite")
+        self.like_button.setChecked(False)
+        self.like_button.setText("☆ Favorite")
 
     def update_instructions(self):
         i = getattr(self, "current_injury", None)
@@ -279,3 +285,117 @@ class MainWindow(QMainWindow):
         
     def display_about(self):
         QMessageBox.information(self, "About FirstAid", "First Aid - Quick Help\nSimple offline first-aid guidance.")
+    
+
+    def apply_styles(self):
+        self.setStyleSheet(f"""
+        QMainWindow {{ background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #f3f6ff, stop:1 {APP_BG}); }}
+        QFrame#display_left, QFrame#display_right {{
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #ffffff, stop:1 #eef6ff);
+            border-radius: 12px;
+            border-top: 1px solid rgba(255,255,255,0.9); 
+            border-bottom: 1px solid rgba(0,0,0,0.06);  
+        }}
+        QListWidget {{
+            background: transparent;
+            border: none;
+            padding: 6px;
+        }}
+        QListWidget::item {{
+            background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #f6fbff, stop:1 #e6f0fb);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin: 8px 4px;
+            color: {TEXT_COLOR};
+            font-size: 13pt;
+            border-top: 1px solid rgba(255,255,255,0.95); 
+            border-bottom: 2px solid rgba(0,0,0,0.04);  
+        }}
+        QListWidget::item:selected {{
+            background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #ffffff, stop:1 #eaf3ff);
+            color: {TEXT_COLOR};
+            border: 2px solid {PRIMARY};
+        }}
+
+        /* Search input (black text only here) */
+        QLineEdit {{
+            background: {INPUT_BG if 'INPUT_BG' in globals() else '#ffffff'};
+            color: #000000;
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 12pt;
+            border: 1px solid rgba(0,0,0,0.08);
+        }}
+
+        /* Image box (flat card) */
+        QLabel {{
+            color: {TEXT_COLOR};
+        }}
+        QLabel#image_label {{
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #ffffff, stop:1 #f7fbff);
+            border-radius: 10px;
+            border-top: 1px solid rgba(255,255,255,0.9);
+            border-bottom: 1px solid rgba(0,0,0,0.03);
+        }}
+
+        /* Buttons: 3D look using gradients + light top edge */
+        QPushButton {{
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: white;
+            font-weight: 600;
+            min-height: 40px;
+        }}
+
+        QPushButton#primary, QPushButton {{
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+                stop:0 {PRIMARY},
+                stop:1 #5f3fe0);
+            border-top: 1px solid rgba(255,255,255,0.9); 
+            border-bottom: 2px solid rgba(0,0,0,0.12);  
+        }}
+        QPushButton#primary:hover {{
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+                stop:0 #7a5df0, stop:1 #5b3ff0);
+        }}
+        QPushButton#primary:pressed {{
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #5b3ff0, stop:1 #7a5df0);
+            border-top: 2px solid rgba(0,0,0,0.08);
+            border-bottom: 1px solid rgba(255,255,255,0.7);
+            padding-top: 12px;
+        }}
+
+        QPushButton#emergency {{
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #ff6b60, stop:1 {EMERGENCY_COLOR});
+            border-top: 1px solid rgba(255,255,255,0.9);
+            border-bottom: 2px solid rgba(0,0,0,0.12);
+        }}
+        QPushButton#emergency:pressed {{
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 {EMERGENCY_COLOR}, stop:1 #ff6b60);
+            border-top: 2px solid rgba(0,0,0,0.08);
+            border-bottom: 1px solid rgba(255,255,255,0.7);
+            padding-top: 12px;
+        }}
+
+        QPushButton#fav {{
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #ffe27a, stop:1 #f1c40f);
+            color: #1e1b2e;
+            border-top: 1px solid rgba(255,255,255,0.9);
+            border-bottom: 2px solid rgba(0,0,0,0.06);
+        }}
+        QPushButton#fav:pressed {{
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #f1c40f, stop:1 #ffd65a);
+            padding-top: 12px;
+        }}
+        QLabel#injury_title {{
+            font-size: 16pt;
+            font-weight: 700;
+            color: {TEXT_COLOR};
+        }}
+        QLabel#instruction {{
+            font-size: 13pt;
+            color: {TEXT_COLOR};
+        }}
+    """)
+  
+
