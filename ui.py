@@ -316,12 +316,12 @@ class MainWindow(QMainWindow):
 
         msg.setText("<b>🚨 Emergency Assistance</b>")
         msg.setInformativeText(
-            f"If your device cannot place calls directly, use one of the following numbers:\n\n"
+            f"If calling fails automatically, please dial one of the following numbers:\n\n"
             f"911 (USA)\n"
             f"112 (EU / Worldwide GSM)\n"
             f"999 (UK)\n"
             f"000 (Australia)\n\n"
-            f"Your default phone or VOIP app should open automatically if supported."
+            f"You can also try calling directly using Facetime or Skype."
         )
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
 
