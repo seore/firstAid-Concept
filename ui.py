@@ -293,7 +293,28 @@ class MainWindow(QMainWindow):
         
         msg = QMessageBox(self)
         msg.setWindowTitle("Emergency Help")
-        msg.setText("<b> Emergency Assistance</b>")
+        msg.setStyleSheet("""
+           QMessageBox {{ 
+                background-color: #fefefe; 
+                border-radius: 12px; 
+                font-family: 'SF Pro Display'; 
+                color: #1e1b2e; 
+            }}
+            QMessageBox QLabel {{ 
+                font-size: 13pt; 
+                color: #1e1b2e; 
+            }}
+            QPushButton {{ 
+                background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #ff6b60, stop:1 #e53935; 
+                border-radius: 8px; 
+                padding: 8px 14px;
+                font-weight: bold; 
+                color: white; 
+            }}
+            QPushButton:hover {{ background: #ff7a6a; }}            
+        """)
+
+        msg.setText("<b>🚨 Emergency Assistance</b>")
         msg.setInformativeText(
             f"If your device cannot place calls directly, use one of the following numbers:\n\n"
             f"911 (USA)\n"
