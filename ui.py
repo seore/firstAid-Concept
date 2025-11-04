@@ -19,7 +19,7 @@ TEXT_COLOR = "#1e1b2e"
 INPUT_BG = "#ffffff"
 INPUT_TEXT = "#000000"
 MUTED = "#7d7396"
-IMG_PLACEHOLDER = "data/icons/burn.png"
+IMG_PLACEHOLDER = ""
 
 class MainWindow(QMainWindow):
     def __init__(self, injuries):
@@ -43,7 +43,7 @@ class MainWindow(QMainWindow):
         # Header
         header = QHBoxLayout()
         title_label = QLabel("First Aid")
-        title_label.setFont(QFont("", 18, QFont.Weight.Bold))
+        title_label.setFont(QFont("Noto Sans", 18, QFont.Weight.Bold))
         title_label.setStyleSheet(f"color: {TEXT_COLOR};")
         header.addWidget(title_label)
         header.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
@@ -91,7 +91,7 @@ class MainWindow(QMainWindow):
         # Favourites Display Card
         title_r = QHBoxLayout()
         self.injury_title = QLabel("Choose an injury")
-        self.injury_title.setFont(QFont("", 16, QFont.Weight.DemiBold))
+        self.injury_title.setFont(QFont("Noto Sans", 16, QFont.Weight.DemiBold))
         title_r.addWidget(self.injury_title)
         title_r.addSpacerItem(QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
 
@@ -112,7 +112,7 @@ class MainWindow(QMainWindow):
         # Instruction Display
         self.instruction = QLabel("Select an injury to see steps.")
         self.instruction.setWordWrap(True)
-        self.instruction.setFont(QFont("", 12))
+        self.instruction.setFont(QFont("Noto Sans", 12))
         self.instruction.setStyleSheet("color: %s;" % TEXT_COLOR)
         self.instruction.setObjectName("intstruction")
         right_display_layout.addWidget(self.instruction, stretch=1)
@@ -212,7 +212,7 @@ class MainWindow(QMainWindow):
     
         # image display
         img_name = i.get("image", "")
-        img_path = os.path.join("icons", img_name) if img_name else ""
+        img_path = os.path.join("data/icons", img_name) if img_name else ""
         if img_path and os.path.exists(img_path):
             pix = QPixmap(img_path).scaledToHeight(260, Qt.TransformationMode.SmoothTransformation)
             self.img_label.setPixmap(pix)
