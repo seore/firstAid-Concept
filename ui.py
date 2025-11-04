@@ -8,6 +8,8 @@ from PyQt6.QtGui import QPixmap, QFont, QIcon, QColor
 import os
 import pyttsx3
 import json
+import webbrowser
+import platform
 
 APP_BG = "#eaf4f4"
 CARD_BG = "#c8d9e6"
@@ -280,9 +282,34 @@ class MainWindow(QMainWindow):
             item.setHidden(item.text() not in self.favourites)
 
     def show_emergency(self):
-        QMessageBox.information(self, "Emergency", "Call your local emergency number immediately!",
-            buttons= QMessageBox.StandardButton.Ok)
+        emergency_number = "999"
+        try:
+            webbrowser.open(f"tel: {emergency_number}")
+            if platform.system() in ["Windows", "Darwin"]:
+                webbrowser.open(f"facetime://{emergency_number}")
+                webbrowser.open(f"skype:{emergency_number}?call")
+        except Exception as e:
+            print(f"Call launch failed: {e}")
         
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Emergency Help")
+        msg.setText("<b> Emergency Assistance</b>")
+        msg.setInformativeText(
+            f"If your device cannot place calls directly, use one of the following numbers:\n\n"
+            f"911 (USA)\n"
+            f"112 (EU / Worldwide GSM)\n"
+            f"999 (UK)\n"
+            f"000 (Australia)\n\n"
+            f"Your default phone or VOIP app should open automatically if supported."
+        )
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+
+        # In Case
+        skype_button = QPushButton("Call via Skype")
+        skype_button.clicked.connect(lambda: webbrowser.open(f"skype:{emergency_number}?call"))
+        msg.addButton(skype_button, QMessageBox.ButtonRole.ActionRole)
+        msg.exec()
+
     def display_about(self):
         QMessageBox.information(self, "About FirstAid", "First Aid - Quick Help\nSimple offline first-aid guidance.")
     
